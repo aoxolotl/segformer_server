@@ -28,9 +28,12 @@ def get_segmentation_mask():
 
         img = Image.open(path)
         # TODO: Use points to define crop boundary
+        l = points.min(axis=0)
+        r = points.max(axis=0)
+        crop_img = img.crop((l[0], l[1], r[0], r[1]))
 
         # Pass image through pipeline
-        outs = pipe(img)
+        outs = pipe(crop_img)
 
         # Segformer spits out a list of masks with associated class name
         # We ignore the class preds for now
@@ -38,9 +41,11 @@ def get_segmentation_mask():
         # This polygon list will be passed on to the front end (PaperSegmentation)
 
         # Use only the final bin mask in the image
-        mask_bin = outs[-1]["mask"]
-        polygons = Mask(mask_bin).polygons().points
-        polygons = [polygon.tolist() for polygon in polygons if len(polygon) > 2]
+        masks = [np.array(out["mask"]) for out in outs]
+        largest_mask = np.argmax([np.sum(mask > 0) for mask in masks])
+        polygons = Mask(masks[largest_mask]).polygons().points
+        polygons = [(polygon + l).tolist() for polygon in polygons if len(polygon) > 2]
+
         end = time.time()
         process_time = end - start
         print(f"Process Time: {process_time:9.3} seconds", flush=True)
