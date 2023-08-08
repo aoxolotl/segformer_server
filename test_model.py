@@ -15,10 +15,12 @@ crop_image = image.crop((l[0], l[1], r[0], r[1]))
 outs = pipe(crop_image)
 
 masks = [np.array(out["mask"]) for out in outs]
-largest_mask = np.argmax([np.sum(mask) for mask in masks])
+#largest_mask = np.argmax([np.sum(mask) for mask in masks])
 #masks = [mask for mask in masks if np.sum(mask > 0) > 10000]
+#polygons = Mask(masks[largest_mask]).polygons().points
+#polygons = [(polygon + l).tolist() for polygon in polygons if len(polygon) > 2]
 breakpoint()
-polygons = Mask(masks[largest_mask]).polygons().points
-polygons = [(polygon + l).tolist() for polygon in polygons if len(polygon) > 2]
+polygons_list = [Mask(mask).polygons().points for mask in masks]
+polygons = [polygon.tolist() for polygons in polygons_list for polygon in polygons if len(polygon) > 2]
 
 print(len(polygons))

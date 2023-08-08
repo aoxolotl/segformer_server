@@ -25,15 +25,15 @@ def get_segmentation_mask():
 
         path = content["path"]
         points = np.array(content["points"])
-
         img = Image.open(path)
-        # TODO: Use points to define crop boundary
-        l = points.min(axis=0)
-        r = points.max(axis=0)
-        crop_img = img.crop((l[0], l[1], r[0], r[1]))
+        if points:
+            # TODO: Use points to define crop boundary
+            l = points.min(axis=0)
+            r = points.max(axis=0)
+            img = img.crop((l[0], l[1], r[0], r[1]))
 
         # Pass image through pipeline
-        outs = pipe(crop_img)
+        outs = pipe(img)
 
         # Segformer spits out a list of masks with associated class name
         # We ignore the class preds for now
@@ -42,9 +42,17 @@ def get_segmentation_mask():
 
         # Use only the final bin mask in the image
         masks = [np.array(out["mask"]) for out in outs]
-        largest_mask = np.argmax([np.sum(mask > 0) for mask in masks])
-        polygons = Mask(masks[largest_mask]).polygons().points
-        polygons = [(polygon + l).tolist() for polygon in polygons if len(polygon) > 2]
+
+        # Do largest mask only if points exist
+        if points:
+            largest_mask = np.argmax([np.sum(mask > 0) for mask in masks])
+            polygons = Mask(masks[largest_mask]).polygons().points
+            polygons = [(polygon + l).tolist() for polygon in polygons if len(polygon) > 2]
+        else:
+            # run on entire image and output all segmentations
+            polygons_list = [Mask(mask).polygons().points for mask in masks]
+            # for each mask create a list of polygon points
+            polygons = [polygon.tolist() for polygons in polygons_list for polygon in polygons if len(polygon) > 2]
 
         end = time.time()
         process_time = end - start
