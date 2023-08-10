@@ -24,10 +24,14 @@ def get_segmentation_mask():
         content = request.json
 
         path = content["path"]
-        points = np.array(content["points"])
+        points = content["points"]
+        # Use full image if points is none or empty
+        full_image = points is None or len(points) == 0
+
         img = Image.open(path)
-        if points:
-            # TODO: Use points to define crop boundary
+        if not full_image:
+            points = np.array(points)
+            # Use points to define crop boundary
             l = points.min(axis=0)
             r = points.max(axis=0)
             img = img.crop((l[0], l[1], r[0], r[1]))
@@ -40,22 +44,24 @@ def get_segmentation_mask():
         # Use masks to build polygons
         # This polygon list will be passed on to the front end (PaperSegmentation)
 
-        # Use only the final bin mask in the image
+        # Convert mask to numpy arrays
         masks = [np.array(out["mask"]) for out in outs]
 
         # Do largest mask only if points exist
-        if points:
+        if not full_image:
             largest_mask = np.argmax([np.sum(mask > 0) for mask in masks])
             polygons = Mask(masks[largest_mask]).polygons().points
             polygons = [(polygon + l).tolist() for polygon in polygons if len(polygon) > 2]
+            polygons = [polygons]
         else:
             # run on entire image and output all segmentations
             polygons_list = [Mask(mask).polygons().points for mask in masks]
             # for each mask create a list of polygon points
-            polygons = [polygon.tolist() for polygons in polygons_list for polygon in polygons if len(polygon) > 2]
+            polygons = [[polygon.tolist() for polygon in polygons if len(polygon) > 2] for polygons in polygons_list]
 
         end = time.time()
         process_time = end - start
+        print(f"{len(polygons)} detected by Segformer", flush=True)
         print(f"Process Time: {process_time:9.3} seconds", flush=True)
 
         return jsonify({"polygons": polygons})
