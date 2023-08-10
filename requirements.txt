@@ -8,7 +8,6 @@ Flask==2.3.2
 fsspec==2023.6.0
 huggingface-hub==0.16.4
 idna==3.4
-imantics==0.1.12
 importlib-metadata==6.8.0
 itsdangerous==2.1.2
 Jinja2==3.1.2
